@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HexTrade – Catan‑vari (Sprint+ • Manual Setup v0.7.3)</title>
+  <style>
+    :root { --bg:#0f1115; --panel:#161a22; --muted:#9aa4b2; --fg:#e8edf2; --p1:#7c4dff; --p2:#ff6b6b; --p3:#4dd0e1; --p4:#ffd166; --ok:#00d68f; --warn:#ffc400; }
+    * { box-sizing: border-box; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial; }
+    body { margin:0; background: linear-gradient(180deg, #0b0e13, #0f1115 20%); color:var(--fg); }
+    header { display:flex; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #1f2530; background:#0c0f14; position:sticky; top:0; z-index:10; }
+    header h1 { font-size:16px; font-weight:700; margin:0; letter-spacing:.4px; opacity:.95; }
+    header .badge { font-size:12px; padding:3px 8px; border-radius:999px; background:#1e2632; color:#b9c4d3; }
+
+    .wrap { display:grid; grid-template-columns: 1fr 360px; gap:0; min-height: calc(100vh - 52px); }
+    #boardWrap { position:relative; background:#0b0e13; border-right:1px solid #151a23; }
+    #c { width:100%; height:100%; display:block; touch-action:manipulation; cursor: crosshair; }
+
+    aside { background:var(--panel); padding:14px; display:flex; flex-direction:column; gap:12px; }
+    .card { background:#121721; border:1px solid #1c222e; border-radius:14px; padding:12px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    button, select { background:#111622; color:var(--fg); border:1px solid #2a3343; border-radius:10px; padding:10px 12px; font-weight:600; letter-spacing:.2px; font-size:14px; }
+    button:hover { border-color:#3b475e; }
+    button.primary { background:#1a2233; border-color:#3a4a6a; }
+    button.good { border-color:#145241; background:#102820; }
+    button.warn { border-color:#5a4a18; background:#2c2410; }
+    .pill { padding:4px 8px; border-radius:999px; background:#101522; border:1px solid #232c3d; font-size:12px; color:#c2ccda; }
+    .stat { display:flex; justify-content:space-between; gap:8px; margin:6px 0; font-size:14px; color:#cbd5e1; }
+    .tiny { font-size:12px; color:var(--muted); }
+    .res { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; }
+    .tag { font-size:11px; padding:3px 7px; border:1px solid #273043; color:#c1cada; background:#0e1320; border-radius:8px; }
+
+    .legend { display:flex; gap:8px; flex-wrap:wrap; }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; border:1px solid #0007; }
+    .p1 { background:#7c4dff; }
+    .p2 { background:#ff6b6b; }
+    .p3 { background:#4dd0e1; }
+    .p4 { background:#ffd166; }
+
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0d1220; border:1px solid #1e2740; padding:2px 6px; border-radius:6px; font-size:12px; color:#c6d2ee; }
+    #selftest { position:fixed; right:10px; bottom:10px; background:#0d1220; border:1px solid #24304b; color:#c6d2ee; padding:8px 10px; border-radius:10px; font-size:12px; z-index:100; white-space:pre-line; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>HexTrade (Sprint+)</h1>
+    <span class="badge" id="phaseBadge">Kurulum: Oyuncu MANUEL olarak 2 yerleşim + her biri için 1 yol koyar</span>
+  </header>
+  <div class="wrap">
+    <div id="boardWrap">
+      <canvas id="c"></canvas>
+    </div>
+    <aside>
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="tiny">Sıra</div>
+            <div style="display:flex; align-items:center; gap:8px; font-weight:800;">
+              <span id="turnPlayerName">P1</span>
+              <span class="dot p1" id="turnDot" style="width:12px; height:12px;"></span>
+            </div>
+          </div>
+          <div>
+            <div class="tiny">Zar</div>
+            <div style="font-size:22px; font-weight:900;" id="diceVal">–</div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button id="rollBtn" class="primary">Zar At (R)</button>
+          <button id="endBtn">Turu Bitir (E)</button>
+          <button id="buyDevBtn" class="good">Gelişim Kartı Satın Al (B)</button>
+        </div>
+        <div class="tiny">Kısayollar: <span class="kbd">1</span> Yerleşim, <span class="kbd">2</span> Yol, <span class="kbd">3</span> Şehir, <span class="kbd">7</span> Soyguncu, <span class="kbd">R</span> Zar, <span class="kbd">E</span> Tur Bitir.</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button id="settlementBtn">Yerleşim (1)</button>
+          <button id="roadBtn">Yol (2)</button>
+          <button id="cityBtn">Şehir (3)</button>
+          <button id="robberBtn" class="warn">Soyguncu (7)</button>
+        </div>
+        <div class="tiny">Kurulumda otomatik yerleştirme YOK. Önizleme: fare ile köşe/kenar üzerine gelince silik görünür; kırmızı ise kural dışı.</div>
+      </div>
+
+      <div class="card" id="playersPanel"></div>
+
+      <div class="card">
+        <div class="row">
+          <select id="tradeFrom"></select>
+          <span id="rateBadge" class="pill">Oran: 4:1</span>
+          <select id="tradeTo"></select>
+          <button id="tradeBtn" class="good">Takas</button>
+        </div>
+        <div class="tiny" id="rateHint">Liman yok</div>
+        <div class="tiny">Bankayla takas. Limanların varsa oran 3:1 veya 2:1'e düşer.</div>
+      </div>
+
+      <div class="card" id="devPanel">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <strong>Gelişim Kartları</strong>
+          <span class="tiny" id="devCount">Deste: –</span>
+        </div>
+        <div class="row">
+          <select id="devSelect"></select>
+          <button id="playDevBtn">Kartı Oyna</button>
+        </div>
+        <div class="row" id="devExtra" style="display:none;"></div>
+      </div>
+
+      <div class="card">
+        <div class="legend">
+          <div><span class="dot p1"></span> P1</div>
+          <div><span class="dot p2"></span> P2</div>
+          <div><span class="dot p3"></span> P3</div>
+          <div><span class="dot p4"></span> P4</div>
+          <div><span class="dot" style="background:#333;"></span> Boş düğüm/kenar</div>
+          <div><span class="dot" style="background:#22314c;"></span> Liman 3:1</div>
+          <div><span class="dot" style="background:#b24b3a;"></span> Liman 2:1 (kaynağa özel)</div>
+        </div>
+      </div>
+
+      <div class="tiny">v0.7.3 – Güvenli başlatma + eski tarayıcı uyumu: roundRect polyfill, watchdog, liman rozetleri sabit; self-test görünür.</div>
+    </aside>
+  </div>
+
+  <div id="selftest">Self-test: pending…</div>
+
+<script>
+(() => {
+  // Early boot marker so "pending" kalmaz
+  try { const st = document.getElementById('selftest'); if (st) st.textContent = 'Self-test: booting…'; } catch(_) {}
+
+  // ====== GEOMETRY ======
+  const TWO_PI = Math.PI * 2;
+  const SQRT3 = Math.sqrt(3);
+  const HEX_R = 52; // hex radius
+  const HEX_W = SQRT3 * HEX_R;
+  const HEX_V = 1.5 * HEX_R; // vertical spacing
+  const VERT_EPS = 12; // vertex merge tolerance (click leniency)
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('boardWrap');
+  let DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+
+  function resize() {
+    DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const cssW = wrap.clientWidth;
+    const cssH = Math.max(760, window.innerHeight - 52);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * DPR);
+    canvas.height = Math.floor(cssH * DPR);
+    draw();
+  }
+  window.addEventListener('resize', resize);
+
+  // Canvas API polyfills
+  try{
+    if(!CanvasRenderingContext2D.prototype.roundRect){
+      CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+        r = typeof r === 'number' ? r : 6;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.lineTo(x + w - r, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.lineTo(x + w, y + h - r);
+        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.lineTo(x + r, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.lineTo(x, y + r);
+        this.quadraticCurveTo(x, y, x + r, y);
+        return this;
+      }
+    }
+  } catch(_) {}
+
+  function getTranslate(){
+    const dx = Math.max(0, (canvas.width / DPR)/2 - center.x);
+    const dy = Math.max(0, (canvas.height / DPR)/2 - center.y);
+    return {dx, dy};
+  }
+  function toBoardCoords(p){
+    const {dx, dy} = getTranslate();
+    return { x: p.x - dx, y: p.y - dy };
+  }
+
+  function axialToPixel(q, r, center) {
+    const x = HEX_W * (q + r/2) + center.x;
+    const y = HEX_V * r + center.y;
+    return {x, y};
+  }
+  function hexCorners(cx, cy) {
+    const corners = [];
+    for (let i=0; i<6; i++) {
+      const angle = Math.PI/6 + i * (TWO_PI/6); // pointy top
+      corners.push({ x: cx + HEX_R * Math.cos(angle), y: cy + HEX_R * Math.sin(angle) });
+    }
+    return corners;
+  }
+  function dist(a, b) { const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx, dy); }
+  function distToSeg(p, a, b) {
+    const abx=b.x-a.x, aby=b.y-a.y; const apx=p.x-a.x, apy=p.y-a.y;
+    const ab2=abx*abx+aby*aby; let t=(ab2===0?0:(apx*abx+apy*aby)/ab2); t=Math.max(0,Math.min(1,t));
+    const x=a.x+t*abx, y=a.y+t*aby; return Math.hypot(p.x-x, p.y-y);
+  }
+
+  // ====== BOARD / GRAPH ======
+  const RES = ["brick","wood","wool","grain","ore","desert"]; // resource types
+  const RES_COL = { brick: "#b24b3a", wood: "#26734d", wool: "#5aa86b", grain: "#c9a227", ore: "#64748b", desert: "#c8b58b" };
+  const RES_TR = { brick:"Tuğla", wood:"Odun", wool:"Yün", grain:"Buğday", ore:"Cevher" };
+  const RES_ORDER = ["brick","wood","wool","grain","ore"];
+
+  const numTokens = [5,2,6,3,8,10,9,12,11,4,8,10,9,4,5,6,3,11];
+  const resBag = [
+    ...Array(3).fill("brick"),
+    ...Array(4).fill("wood"),
+    ...Array(4).fill("wool"),
+    ...Array(4).fill("grain"),
+    ...Array(3).fill("ore"),
+    "desert"
+  ];
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; }
+
+  const center = { x: 560, y: 440 };
+  let tiles = []; // {q,r,cx,cy,res,num,vertices:[],edges:[],hasRobber}
+  let vertices = []; // {id,x,y,b:null|{player,isCity}}
+  let edges = [];    // {id,v1,v2,road:null|{player}}
+  let vertexMap = []; // [{x,y,id}]
+  let edgeMap = new Map();
+  let ports = [];    // {vId, type:'any'|'brick'|'wood'|'wool'|'grain'|'ore'}
+
+  function getOrCreateVertex(x,y){
+    for(const v of vertexMap){ if(dist({x,y}, v) < VERT_EPS) return v.id; }
+    const id = vertices.length; vertices.push({ id, x, y, b: null }); vertexMap.push({ x, y, id }); return id;
+  }
+  function keyEdge(a,b){ return a<b?`${a}-${b}`:`${b}-${a}`; }
+  function getOrCreateEdge(a,b){ const k=keyEdge(a,b); if(edgeMap.has(k)) return edgeMap.get(k); const id = edges.length; edges.push({ id, v1:a, v2:b, road:null }); edgeMap.set(k,id); return id; }
+
+  function genBoard(){
+    tiles=[]; vertices=[]; edges=[]; vertexMap=[]; edgeMap.clear(); ports=[];
+    const coords=[];
+    for(let q=-2;q<=2;q++){
+      for(let r=-2;r<=2;r++){
+        const s = -q-r; if(Math.max(Math.abs(q),Math.abs(r),Math.abs(s))<=2){ coords.push({q,r}); }
+      }
+    }
+    const resList = shuffle(resBag.slice());
+    const nums = shuffle(numTokens.slice()); let numIdx=0;
+    for(let i=0;i<coords.length;i++){
+      const {q,r} = coords[i]; const p = axialToPixel(q,r, center);
+      const res = resList[i]; const num = res==="desert"? null : nums[numIdx++];
+      const corners = hexCorners(p.x, p.y);
+      const vIds = corners.map(pt => getOrCreateVertex(pt.x, pt.y));
+      const eIds = [];
+      for(let k=0;k<6;k++){ const a=vIds[k], b=vIds[(k+1)%6]; eIds.push(getOrCreateEdge(a,b)); }
+      tiles.push({ q,r, cx:p.x, cy:p.y, res, num, vertices:vIds, edges:eIds, hasRobber: res==="desert" });
+    }
+    placePorts();
+  }
+
+  function placePorts(){
+    const outer = tiles.filter(t=> Math.max(Math.abs(t.q), Math.abs(t.r), Math.abs(-t.q - t.r))===2);
+    const candVerts = new Set();
+    for(const t of outer){ for(const vId of t.vertices){ candVerts.add(vId); } }
+    const arr=[...candVerts];
+    // Liman tipleri: 4 adet 3:1 (any) + her kaynaktan 1 adet 2:1
+    const types = ['any','any','any','any','brick','wood','wool','grain','ore'];
+    // Köşe köşe çok yakın liman olmasın diye basit aralık filtresi
+    function farEnough(list, vId){
+      const VMIN = 60; // px
+      const v = vertices[vId];
+      return list.every(p=> Math.hypot(vertices[p.vId].x - v.x, vertices[p.vId].y - v.y) > VMIN);
+    }
+    shuffle(arr);
+    for(const tp of types){
+      let picked = null;
+      for(const vId of arr){ if(farEnough(ports, vId)){ picked = vId; break; } }
+      if(picked!=null) ports.push({ vId: picked, type: tp });
+    }
+  }
+
+  // ====== PLAYERS / STATE ======
+  const COLORS = ['#7c4dff','#ff6b6b','#4dd0e1','#ffd166'];
+  const players = [0,1,2,3].map(i=>({
+    id:i, name:`P${i+1}`, color: COLORS[i], res:{brick:0,wood:0,wool:0,grain:0,ore:0},
+    settlements:new Set(), cities:new Set(), roads:new Set(), vp:0, knightsPlayed:0, devHand:[], hiddenVP:0
+  }));
+  let cur = 0;
+  let mode = 'none'; // none|settlement|road|city|robber
+  let rolledThisTurn = false;
+  let setup = true; // setup phase on
+  let setupOrder = []; // snake order of player ids for 2 settlements + roads
+  let setupPointer = 0; // index into setupOrder
+  let expectingRoadAfter = null; // when placing settlement during setup, force a road next from that vertex
+
+  // Holders (declare ONCE)
+  let longestRoadHolder = null; let largestArmyHolder = null;
+
+  function otherPlayers(pid){ return players.filter(p=>p.id!==pid); }
+
+  function canAfford(p, cost){ for(const k in cost){ if(p.res[k] < cost[k]) return false; } return true; }
+  function payCost(p, cost){ for(const k in cost){ p.res[k] -= cost[k]; } }
+  const COSTS = {
+    settlement: { brick:1, wood:1, wool:1, grain:1 },
+    road: { brick:1, wood:1 },
+    city: { grain:2, ore:3 },
+    dev: { wool:1, grain:1, ore:1 }
+  };
+
+  // Dev card deck
+  let devDeck = [];
+  function buildDevDeck(){
+    devDeck = [];
+    devDeck.push(...Array(14).fill({t:'knight'}));
+    devDeck.push(...Array(2).fill({t:'monopoly'}));
+    devDeck.push(...Array(2).fill({t:'yop'}));
+    devDeck.push(...Array(2).fill({t:'road'}));
+    devDeck.push(...Array(5).fill({t:'vp'}));
+    devDeck = shuffle(devDeck.map(x=>({t:x.t})));
+  }
+
+  // ====== RULE HELPERS ======
+  function adjacentVertices(vId){ const out=[]; for(const e of edges){ if(e.v1===vId) out.push(e.v2); else if(e.v2===vId) out.push(e.v1); } return out; }
+  function vertexEmptyAndLegal(vId){
+    const v = vertices[vId]; if(v.b) return false; for(const nId of adjacentVertices(vId)){ if(vertices[nId].b) return false; } return true;
+  }
+  function vertexTouchingPlayerNetwork(vId, pid){
+    const v = vertices[vId]; if(v.b && v.b.player===pid) return true;
+    for(const e of edges){ if((e.v1===vId || e.v2===vId) && e.road && e.road.player===pid) return true; }
+    for(const nId of adjacentVertices(vId)){ const nb=vertices[nId].b; if(nb && nb.player===pid) return true; }
+    return false;
+  }
+  function edgeByPoint(p){ let best=null, bestD=9999; for(const e of edges){ const a=vertices[e.v1], b=vertices[e.v2]; const d=distToSeg(p, a, b); if(d<bestD){ bestD=d; best=e; } } return best && bestD<14 ? best : null; }
+  function vertexByPoint(p){ let best=null, bestD=9999; for(const v of vertices){ const d=dist(p, v); if(d<bestD){ bestD=d; best=v; } } return best && bestD<22 ? best : null; }
+
+  function tradeRate(pid, from){
+    let rate = 4; const hasAny = playerHasPort(pid, 'any'); const hasSpec = playerHasPort(pid, from);
+    if(hasSpec) rate = 2; else if(hasAny) rate = 3; else rate = 4; return rate;
+  }
+  function playerHasPort(pid, type){
+    for(const prt of ports){ if(prt.type===type || (type==='any' && prt.type==='any')){
+      const v = vertices[prt.vId]; if(v.b && v.b.player===pid) return true;
+    } } return false;
+  }
+  function playerPortTypes(pid){
+    const out = [];
+    const owned = new Set([...players[pid].settlements, ...players[pid].cities]);
+    for(const prt of ports){ if(owned.has(prt.vId)) out.push(prt.type); }
+    return out;
+  }
+
+  // ====== BUILDING ======
+  function buildSettlement(vId){
+    const p = players[cur];
+    if(!vertexEmptyAndLegal(vId)) return toast("Yerleşim uygun değil.");
+
+    if(setup){
+      vertices[vId].b = { player:p.id, isCity:false };
+      p.settlements.add(vId); p.vp += 1; expectingRoadAfter = vId; mode = 'road';
+      toast('Kurulum: Şimdi bu yerleşime bitişik bir kenara yol koy.');
+      draw(); updateUI();
+      return;
+    }
+
+    if(!vertexTouchingPlayerNetwork(vId, p.id)) return toast("Ağa bağlı değil.");
+    if(!canAfford(p, COSTS.settlement)) return toast("Yetersiz kaynak.");
+    payCost(p, COSTS.settlement);
+    vertices[vId].b = { player:p.id, isCity:false };
+    p.settlements.add(vId); p.vp += 1; updateUI(); draw();
+  }
+
+  function isRoadPlacementLegal(eId, pid){
+    const e = edges[eId]; if(!e) return false; if(e.road) return false;
+    const a=vertices[e.v1], b=vertices[e.v2];
+    const touching = (a.b && a.b.player===pid) || (b.b && b.b.player===pid) ||
+      (edges.some(ed => ed.road && ed.road.player===pid && (ed.v1===e.v1||ed.v2===e.v1||ed.v1===e.v2||ed.v2===e.v2)));
+    if(setup && expectingRoadAfter!=null){ return touching && (e.v1===expectingRoadAfter || e.v2===expectingRoadAfter); }
+    return touching;
+  }
+
+  function buildRoad(eId, free=false){
+    const p = players[cur]; const e = edges[eId]; if(e.road) return toast("Bu kenarda yol var.");
+    if(!isRoadPlacementLegal(eId, p.id)) return toast("Ağa bağlanmıyor veya kurulum kuralına uymuyor.");
+
+    if(!setup && !free){ if(!canAfford(p, COSTS.road)) return toast("Yetersiz kaynak."); payCost(p, COSTS.road); }
+
+    e.road = { player:p.id }; p.roads.add(eId);
+    updateLongestRoad(p.id);
+    if(setup && expectingRoadAfter!=null){
+      const count = p.settlements.size;
+      if(count===2){ grantInitialResources(expectingRoadAfter, p.id); }
+      expectingRoadAfter = null; mode='settlement'; advanceSetupAfterPlacement(true);
+    }
+    updateUI(); draw();
+  }
+
+  function buildCity(vId){
+    const p = players[cur]; const v=vertices[vId]; if(!v.b || v.b.player!==p.id || v.b.isCity) return toast("Kendi yerleşimin değil ya da zaten şehir.");
+    if(setup) return toast("Kurulumda şehir yok.");
+    if(!canAfford(p, COSTS.city)) return toast("Yetersiz kaynak.");
+    payCost(p, COSTS.city); v.b.isCity=true; p.settlements.delete(vId); p.cities.add(vId); p.vp += 1; updateUI(); draw();
+  }
+
+  function grantInitialResources(vId, pid){
+    for(const t of getAdjacentTiles(vId)){ if(t.res!="desert") players[pid].res[t.res]+=1; }
+    spawnResourceBurst(vertices[vId]);
+  }
+  function getAdjacentTiles(vId){ return tiles.filter(t=>t.vertices.includes(vId)); }
+
+  // ====== TURN FLOW ======
+  function endTurn(){
+    if(setup){ toast("Kurulum bitmeden sıra geçmez."); return; }
+    cur = (cur+1)%players.length; rolledThisTurn=false; mode="none"; setTurnUI(); draw();
+  }
+
+  function rollDice(){ if(setup) return toast("Kurulumda zar yok."); if(rolledThisTurn) return toast("Bu tur zar atıldı.");
+    const d1=1+Math.floor(Math.random()*6), d2=1+Math.floor(Math.random()*6); const n=d1+d2; document.getElementById('diceVal').textContent=n; rolledThisTurn=true;
+    if(n===7){ mode="robber"; toast("7 attın. Soyguncuyu bir hexe taşı."); } else { distribute(n); }
+  }
+
+  function distribute(num){
+    const gains = [];
+    for(const t of tiles){ if(t.num===num && !t.hasRobber && t.res!="desert"){
+      for(const vId of t.vertices){ const v=vertices[vId]; if(v.b){ const pl=players[v.b.player]; const amt=v.b.isCity?2:1; pl.res[t.res]+=amt; gains.push({pt:v, res:t.res, amt}); } }
+    } }
+    updateUI();
+    for(const g of gains){ spawnResourceBubble(g.pt, RES_TR[g.res], g.amt); }
+  }
+
+  function moveRobberToTile(tile){
+    for(const t of tiles){ t.hasRobber=false; } tile.hasRobber=true;
+    const victims = new Set();
+    for(const vId of tile.vertices){ const v=vertices[vId]; if(v.b && v.b.player!==cur){ victims.add(v.b.player); } }
+    if(victims.size){ const arr=[...victims]; const victimId = arr[Math.floor(Math.random()*arr.length)];
+      const victim = players[victimId]; const keys=RES_ORDER.filter(k=>victim.res[k]>0);
+      if(keys.length){ const k=keys[Math.floor(Math.random()*keys.length)]; victim.res[k]-=1; players[cur].res[k]+=1; toast(`Soyguncu: ${players[cur].name}, ${players[victimId].name}'dan 1 ${RES_TR[k]} aldı.`); }
+    }
+    updateUI(); draw();
+  }
+
+  // ====== SETUP PHASE ======
+  function makeSetupOrder(){
+    const ids = players.map(p=>p.id);
+    const forward = ids.slice(); const backward = ids.slice().reverse();
+    setupOrder = [...forward, ...backward];
+    setupPointer = 0; cur = setupOrder[0]; mode='settlement'; setTurnUI();
+  }
+  function advanceSetupAfterPlacement(justRoad){
+    if(justRoad){
+      setupPointer++;
+      if(setupPointer>=setupOrder.length){
+        setup=false; document.getElementById('phaseBadge').textContent='Oyun: Normal tur akışı'; cur = players[0].id; mode='none'; setTurnUI();
+      } else {
+        cur = setupOrder[setupPointer]; mode='settlement'; setTurnUI();
+      }
+    }
+  }
+
+  // ====== LONGEST ROAD / LARGEST ARMY ======
+  function updateLongestRoad(pid){
+    const len = computeLongestRoad(pid);
+    let bestPid = longestRoadHolder; let bestLen = bestPid!=null? computeLongestRoad(bestPid) : 0;
+    if(len>=5 && (bestPid==null || len>bestLen)) { setLongestRoad(pid); }
+  }
+  function computeLongestRoad(pid){
+    const blocked = new Set();
+    for(const v of vertices){ if(v.b && v.b.player!==pid) blocked.add(v.id); }
+    const pedges = edges.filter(e=> e.road && e.road.player===pid);
+    const byV = new Map();
+    for(const e of pedges){ if(!byV.has(e.v1)) byV.set(e.v1, []); if(!byV.has(e.v2)) byV.set(e.v2, []); byV.get(e.v1).push(e); byV.get(e.v2).push(e); }
+    let best=0;
+    function dfs(v, visited){ best=Math.max(best, visited.size); const list=byV.get(v)||[]; for(const e of list){ if(visited.has(e.id)) continue; const nxt = e.v1===v? e.v2 : e.v1; if(vertices[nxt] && vertices[nxt].b && vertices[nxt].b.player!==pid) continue; visited.add(e.id); dfs(nxt, visited); visited.delete(e.id); } }
+    for(const v of byV.keys()){ dfs(v, new Set()); }
+    return best;
+  }
+  function setLongestRoad(pid){
+    if(longestRoadHolder!=null){ players[longestRoadHolder].vp -= 2; }
+    longestRoadHolder = pid; players[pid].vp += 2; toast(`En Uzun Yol: ${players[pid].name}`); updateUI();
+  }
+  function setLargestArmy(pid){
+    if(largestArmyHolder!=null){ players[largestArmyHolder].vp -= 2; }
+    largestArmyHolder = pid; players[pid].vp += 2; toast(`En Büyük Ordu: ${players[pid].name}`); updateUI();
+  }
+
+  // ====== DEV CARDS ======
+  function buyDev(){ const p=players[cur]; if(setup) return toast('Kurulumda dev kart yok.'); if(!canAfford(p, COSTS.dev)) return toast('Yetersiz kaynak.'); if(!devDeck.length) return toast('Deste bitti.'); payCost(p, COSTS.dev); const card = devDeck.pop(); if(card.t==='vp'){ p.hiddenVP += 1; toast('Gizli VP kartı.'); } else { p.devHand.push(card.t); toast('Kart alındı: '+cardName(card.t)); } updateUI(); }
+  function cardName(t){ return t==='knight'?'Şövalye': t==='monopoly'?'Monopoly': t==='yop'?'Bolluk Yılı': t==='road'?'Yol İnşası': 'VP'; }
+  function refreshDevSelect(){ const sel=document.getElementById('devSelect'); sel.innerHTML=''; const p=players[cur]; const counts={}; for(const t of p.devHand){ counts[t]=(t in counts?counts[t]:0)+1; }
+    Object.keys(counts).forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=cardName(t)+` x${counts[t]}`; sel.appendChild(o); });
+    document.getElementById('devCount').textContent = `Deste: ${devDeck.length}`;
+  }
+  function playSelectedCard(){ const sel=document.getElementById('devSelect'); const t=sel.value; if(!t) return toast('Kart yok.');
+    const p=players[cur]; const idx=p.devHand.indexOf(t); if(idx<0) return; // safety
+    if(t==='knight'){ mode='robber'; p.devHand.splice(idx,1); p.knightsPlayed+=1; toast('Şövalye: Soyguncu taşı.');
+      if(p.knightsPlayed>=3 && (largestArmyHolder==null || p.knightsPlayed>players[largestArmyHolder].knightsPlayed)) setLargestArmy(p.id);
+    } else if(t==='yop'){
+      showDevExtra('Bolluk Yılı: 2 kaynak seç', ()=>{
+        const a=document.getElementById('exA').value; const b=document.getElementById('exB').value; players[cur].res[a]+=1; players[cur].res[b]+=1; p.devHand.splice(idx,1); hideDevExtra(); updateUI(); toast('Bolluk Yılı uygulandı.');
+      }, true);
+    } else if(t==='road'){
+      freeRoadsToPlace = 2; mode='road'; p.devHand.splice(idx,1); toast('Yol İnşası: 2 ücretsiz yol yerleştir.');
+    } else if(t==='monopoly'){
+      showDevExtra('Monopoly: bir kaynak seç', ()=>{
+        const k=document.getElementById('exA').value; let tot=0; for(const op of otherPlayers(cur)){ const amt=op.res[k]; if(amt>0){ op.res[k]-=amt; players[cur].res[k]+=amt; tot+=amt; } } hideDevExtra(); updateUI(); toast(`Monopoly: ${RES_TR[k]} x${tot}`);
+        p.devHand.splice(idx,1);
+      }, false, ['exA']);
+    }
+    updateUI();
+  }
+  function showDevExtra(title, onConfirm, two=false, ids=['exA','exB']){
+    const box=document.getElementById('devExtra'); box.style.display='flex'; box.innerHTML='';
+    const label=document.createElement('div'); label.textContent=title; label.className='tiny'; box.appendChild(label);
+    function mkSel(id){ const s=document.createElement('select'); s.id=id; for(const k of RES_ORDER){ const o=document.createElement('option'); o.value=k; o.textContent=RES_TR[k]; s.appendChild(o); } return s; }
+    box.appendChild(mkSel(ids[0])); if(two){ box.appendChild(mkSel(ids[1])); }
+    const ok=document.createElement('button'); ok.textContent='Tamam'; ok.onclick=onConfirm; box.appendChild(ok);
+  }
+  function hideDevExtra(){ const box=document.getElementById('devExtra'); box.style.display='none'; }
+  let freeRoadsToPlace = 0;
+
+  // ====== INPUT & HOVER PREVIEW ======
+  let hoverVId = null; let hoverEId = null;
+  function onMouseMove(ev){
+    const rect=canvas.getBoundingClientRect(); const pCanvas={ x: ev.clientX-rect.left, y: ev.clientY-rect.top };
+    const p = toBoardCoords(pCanvas);
+    hoverVId = null; hoverEId = null;
+    if(mode==='settlement'){ const v=vertexByPoint(p); if(v) hoverVId=v.id; }
+    else if(mode==='road'){ const e=edgeByPoint(p); if(e) hoverEId=e.id; }
+  }
+  function onMouseLeave(){ hoverVId=null; hoverEId=null; }
+
+  function onClick(ev){
+    const rect=canvas.getBoundingClientRect(); const pCanvas={ x: ev.clientX-rect.left, y: ev.clientY-rect.top };
+    const p = toBoardCoords(pCanvas);
+    if(mode==='settlement'){ const v=vertexByPoint(p); if(v) buildSettlement(v.id); return; }
+    if(mode==='road'){ const e=edgeByPoint(p); if(e){ const free = freeRoadsToPlace>0 || setup; buildRoad(e.id, free); if(free && freeRoadsToPlace>0){ freeRoadsToPlace--; if(freeRoadsToPlace===0) mode='none'; } } return; }
+    if(mode==='city'){ const v=vertexByPoint(p); if(v) buildCity(v.id); return; }
+    if(mode==='robber'){ const t=nearestTile(p); if(t){ moveRobberToTile(t); mode='none'; } return; }
+  }
+  function nearestTile(pBoard){ let best=null, bestD=1e9; for(const t of tiles){ const d=Math.hypot(pBoard.x - t.cx, pBoard.y - t.cy); if(d<bestD){ bestD=d; best=t; } } return best; }
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='1') mode='settlement';
+    if(e.key==='2') mode='road';
+    if(e.key==='3') mode='city';
+    if(e.key==='7') mode='robber';
+    if(e.key.toLowerCase()==='r') rollDice();
+    if(e.key.toLowerCase()==='e') endTurn();
+    if(e.key.toLowerCase()==='b') buyDev();
+  });
+
+  // ====== UI ======
+  const tradeFrom = document.getElementById('tradeFrom');
+  const tradeTo = document.getElementById('tradeTo');
+  const tradeBtn = document.getElementById('tradeBtn');
+  const rateBadge = document.getElementById('rateBadge');
+  function fillTrade(){ tradeFrom.innerHTML=''; tradeTo.innerHTML='';
+    for(const k of RES_ORDER){ const o=document.createElement('option'); o.value=k; o.textContent=RES_TR[k]; tradeFrom.appendChild(o); }
+    for(const k of RES_ORDER){ const o=document.createElement('option'); o.value=k; o.textContent=RES_TR[k]; tradeTo.appendChild(o); }
+    updateRateBadge();
+  }
+  function updateRateBadge(){ const from=tradeFrom.value||'brick'; rateBadge.textContent='Oran: '+tradeRate(cur, from)+':1';
+    const hint = document.getElementById('rateHint'); if(hint){
+      const ports = playerPortTypes(cur);
+      if(!ports.length) hint.textContent = 'Liman yok';
+      else {
+        const parts = ports.map(t=> t==='any' ? '3:1' : `2:1 ${RES_TR[t]}`);
+        hint.textContent = 'Limanların: ' + parts.join(', ');
+      }
+    }
+  }
+  tradeFrom.onchange = updateRateBadge;
+  tradeBtn.onclick = ()=>{
+    if(setup) return toast('Kurulumda takas yok.');
+    const from=tradeFrom.value, to=tradeTo.value; if(from===to) return toast("Aynı kaynağı takas edemezsin.");
+    const rate = tradeRate(cur, from); const p=players[cur]; if(p.res[from] < rate) return toast(`${RES_TR[from]} ${rate} lazım.`);
+    p.res[from]-=rate; p.res[to]+=1; updateUI(); draw();
+  };
+
+  document.getElementById('rollBtn').onclick = rollDice;
+  document.getElementById('endBtn').onclick = endTurn;
+  document.getElementById('settlementBtn').onclick = ()=>{ mode='settlement'; };
+  document.getElementById('roadBtn').onclick = ()=>{ mode='road'; };
+  document.getElementById('cityBtn').onclick = ()=>{ mode='city'; };
+  document.getElementById('robberBtn').onclick = ()=>{ mode='robber'; };
+  document.getElementById('buyDevBtn').onclick = buyDev;
+  document.getElementById('playDevBtn').onclick = playSelectedCard;
+
+  function updatePlayersPanel(){
+    const box = document.getElementById('playersPanel');
+    let html = '';
+    for(const p of players){
+      html += `<div class="stat"><span><span class="dot" style="background:${p.color};"></span> ${p.name}</span><strong>${p.vp + p.hiddenVP}</strong></div>`;
+      html += `<div class="res">`+
+        `<span class="tag">Tuğla ${p.res.brick}</span>`+
+        `<span class="tag">Odun ${p.res.wood}</span>`+
+        `<span class="tag">Yün ${p.res.wool}</span>`+
+        `<span class="tag">Buğday ${p.res.grain}</span>`+
+        `<span class="tag">Cevher ${p.res.ore}</span>`+
+      `</div>`;
+    }
+    box.innerHTML = html;
+  }
+  function setTurnUI(){
+    document.getElementById('turnPlayerName').textContent = players[cur].name;
+    const dot = document.getElementById('turnDot'); dot.className='dot'; dot.style.background=players[cur].color;
+    document.getElementById('diceVal').textContent = '–';
+    refreshDevSelect(); updateRateBadge();
+  }
+  function updateUI(){ updatePlayersPanel(); refreshDevSelect(); updateRateBadge(); }
+
+  // ====== RENDER ======
+  const RES_COL_FALLBACK = '#888';
+  function drawHex(cx,cy,res,num,hasRobber){
+    const pts = hexCorners(cx,cy);
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for(let i=1;i<6;i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath();
+    const fill = RES_COL[res] || RES_COL_FALLBACK;
+    ctx.fillStyle=fill; ctx.strokeStyle="#0b0f17"; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+    if(num){ ctx.beginPath(); ctx.arc(cx, cy, 16, 0, TWO_PI); ctx.fillStyle="#10131a"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#202738"; ctx.stroke(); ctx.fillStyle="#e9eef6"; ctx.font="bold 14px Inter, system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(num, cx, cy); }
+    if(hasRobber){ ctx.beginPath(); ctx.arc(cx, cy-24, 10, 0, TWO_PI); ctx.fillStyle="#0e0e0e"; ctx.fill(); ctx.strokeStyle="#444"; ctx.stroke(); }
+  }
+  function drawEdge(e){ const a=vertices[e.v1], b=vertices[e.v2]; ctx.lineWidth = e.road? 6 : 2.2; ctx.strokeStyle = e.road? players[e.road.player].color : "#2a3343"; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  function drawVertex(v){
+    ctx.beginPath(); ctx.arc(v.x, v.y, 6.5, 0, TWO_PI); ctx.fillStyle = v.b? players[v.b.player].color : "#111826"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#273043"; ctx.stroke();
+    if(v.b && v.b.isCity){ ctx.beginPath(); ctx.arc(v.x, v.y, 3, 0, TWO_PI); ctx.fillStyle="#fff"; ctx.fill(); }
+    const prt = ports.find(p=>p.vId===v.id);
+    if(prt){ drawPortBadge(v, prt.type); }
+  }
+  function drawPortBadge(v, type){
+    const vx = v.x - center.x, vy = v.y - center.y; const len = Math.hypot(vx,vy) || 1; const nx = vx/len, ny = vy/len;
+    const px = v.x + nx*22, py = v.y + ny*22;
+    const label = type==='any' ? '3:1' : `2:1 ${RES_TR[type].slice(0,2)}`;
+    ctx.save(); ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(px-18, py-10, 36, 20, 6); else ctx.rect(px-18, py-10, 36, 20);
+    ctx.fillStyle = type==='any'? '#22314c' : RES_COL[type]; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle='#0a0a0a'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(v.x + nx*10, v.y + ny*10); ctx.lineTo(px-6, py); ctx.lineTo(px+6, py); ctx.closePath(); ctx.fillStyle = type==='any'? '#22314c' : RES_COL[type]; ctx.fill();
+    ctx.fillStyle = '#e9eef6'; ctx.font = 'bold 11px Inter, system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label, px, py);
+    ctx.restore();
+  }
+
+  // Hover previews
+  function drawHover(){
+    if(mode==='settlement' && hoverVId!=null){
+      const v = vertices[hoverVId]; const ok = vertexEmptyAndLegal(hoverVId) && (setup || vertexTouchingPlayerNetwork(hoverVId, cur));
+      ctx.save(); ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(v.x, v.y, 8.5, 0, TWO_PI); ctx.fillStyle = ok? '#00d68f' : '#ff6b6b'; ctx.fill(); ctx.restore();
+    }
+    if(mode==='road' && hoverEId!=null){
+      const e = edges[hoverEId]; const ok = isRoadPlacementLegal(hoverEId, cur);
+      const a=vertices[e.v1], b=vertices[e.v2]; ctx.save(); ctx.globalAlpha = 0.6; ctx.lineWidth = 6; ctx.strokeStyle = ok? '#00d68f' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+    }
+  }
+
+  const resourceBubbles = [];
+  function spawnResourceBubble(pt, label, amt){ resourceBubbles.push({x:pt.x, y:pt.y-20, t:0, label:`${label} +${amt}`}); }
+  function spawnResourceBurst(pt){ for(let i=0;i<3;i++){ resourceBubbles.push({x:pt.x+(Math.random()*30-15), y:pt.y-20-(i*6), t:0, label:'+'}); } }
+
+  function draw(){
+    // Reset transform and apply DPR scaling
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.clearRect(0,0,canvas.width / DPR, canvas.height / DPR);
+    const {dx, dy} = getTranslate();
+    ctx.save(); ctx.translate(dx, dy);
+    for(const t of tiles) drawHex(t.cx, t.cy, t.res, t.num, t.hasRobber);
+    for(const e of edges) drawEdge(e);
+    for(const v of vertices) drawVertex(v);
+    drawHover();
+    for(const b of resourceBubbles){ const a=Math.min(1, 1-b.t/60); ctx.globalAlpha=a; ctx.fillStyle='#e9eef6'; ctx.font='bold 12px Inter, system-ui'; ctx.textAlign='center'; ctx.fillText(b.label, b.x, b.y - b.t*0.6); ctx.globalAlpha=1; b.t++; }
+    while(resourceBubbles.length && resourceBubbles[0].t>60) resourceBubbles.shift();
+    ctx.restore();
+  }
+
+  // ====== TOAST & ERROR OVERLAY ======
+  let toastTimer=null;
+  function toast(msg){ const id='toast'; let t=document.getElementById(id); if(!t){ t=document.createElement('div'); t.id=id; document.body.appendChild(t);
+      t.style.position='fixed'; t.style.left='50%'; t.style.bottom='26px'; t.style.transform='translateX(-50%)'; t.style.background='#0d1220'; t.style.border='1px solid #24304b'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.boxShadow='0 6px 30px #0008'; t.style.zIndex='50'; t.style.color='#dbe6fb'; t.style.fontWeight='700'; t.style.maxWidth='80vw'; t.style.textAlign='center'; }
+    t.textContent = msg; t.style.opacity='1'; if(toastTimer) clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ t.style.transition='opacity .4s'; t.style.opacity='0'; }, 1600); }
+  function showFatal(err){
+    const el=document.getElementById('selftest');
+    const msg = (err && (err.stack||err.message)) ? (err.message+'\n'+(err.stack||'')) : String(err);
+    if(el) { el.textContent = 'Self-test: FATAL\n'+msg; el.dataset.done='1'; }
+  }
+  window.addEventListener('error', (e)=>{ showFatal(e.error || e.message); });
+  window.addEventListener('unhandledrejection', (e)=>{ showFatal(e.reason || 'unhandledrejection'); });
+  try { console.log('[HexTrade] boot ok, DPR=', DPR); } catch(_) {}
+
+  // ====== INIT ======
+  function init(){
+    genBoard(); buildDevDeck(); makeSetupOrder(); setTurnUI(); fillTrade(); updateUI(); resize();
+    canvas.addEventListener('click', onClick);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseleave', onMouseLeave);
+    requestAnimationFrame(loop);
+    toast('Kurulum: Manuel. Önce köşe (yerleşim), sonra bitişik kenar (yol).');
+    const el=document.getElementById('selftest'); if(el) el.textContent='Self-test: starting…';
+    setTimeout(()=>{ try{ runSelfTests(); } catch(err){ showFatal(err); } }, 0);
+    setTimeout(()=>{ const box=document.getElementById('selftest'); if(box && !box.dataset.done){ showFatal('Init watchdog: self-test did not finish.'); } }, 2500);
+  }
+  function loop(){ draw(); requestAnimationFrame(loop); }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+
+  // ====== SELF TESTS ======
+  function runSelfTests(){
+    const el=document.getElementById('selftest');
+    const results=[]; const pass=(name)=>results.push(`✔ ${name}`); const fail=(name, e)=>results.push(`✘ ${name}: ${e}`);
+    try{ if(tiles.length===19) pass('Board has 19 tiles'); else fail('Tile count', `got ${tiles.length}`);}catch(e){fail('Tile count', e)}
+    try{ if(ports.length>=7 && ports.length<=12) pass('Ports placed'); else fail('Ports placed', `got ${ports.length}`);}catch(e){fail('Ports placed', e)}
+    try{ const orderOk = (setupOrder.length===players.length*2); if(orderOk) pass('Setup snake order length'); else fail('Setup order', setupOrder.length);}catch(e){fail('Setup order', e)}
+
+    try{ if(mode==='settlement' && setup===true) pass('Starts in settlement mode during setup'); else fail('Startup mode', `mode=${mode} setup=${setup}`);}catch(e){fail('Startup mode', e)}
+    try{ const anyB = vertices.some(v=>v.b); if(!anyB) pass('No auto placements on init'); else fail('Unexpected auto placement', 'found built vertex'); }catch(e){ fail('Auto placement scan', e); }
+    try{ if(typeof computeLongestRoad==='function' && typeof updateLongestRoad==='function') pass('Longest road fns exist'); else fail('Longest road fns missing',''); }catch(e){ fail('Longest road fns', e); }
+    try{ const robberCount = tiles.filter(t=>t.hasRobber===true).length; if(robberCount===1) pass('Single robber at start'); else fail('Robber count', robberCount); }catch(e){ fail('Robber count', e); }
+    try{ if(longestRoadHolder===null && largestArmyHolder===null) pass('Holders start null'); else fail('Holders init', `${longestRoadHolder},${largestArmyHolder}`);}catch(e){ fail('Holders init', e); }
+    try{ if(hoverVId===null && hoverEId===null) pass('Hover IDs default null'); else fail('Hover defaults', `${hoverVId},${hoverEId}`);}catch(e){ fail('Hover defaults', e); }
+    try{
+      const v0 = vertices[0];
+      const {dx,dy}=getTranslate();
+      const css = { x: v0.x + dx, y: v0.y + dy };
+      const back = toBoardCoords(css);
+      const d = Math.hypot(back.x - v0.x, back.y - v0.y);
+      if(d < 0.51) pass('DPR & translate mapping (≤0.5px)'); else fail('DPR mapping delta', d.toFixed(2));
+    }catch(e){ fail('DPR mapping test', e); }
+
+    const version = 'v0.7.3';
+    el.textContent = `Self-test: ${results.every(r=>r.startsWith('✔'))?'OK':'issues'}\n${results.join('\n')}\n${version}`;
+    el.dataset.done='1';
+  }
+})();
+</script>
+</body>
+</html>
